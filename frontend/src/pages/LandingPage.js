@@ -43,7 +43,7 @@ const LandingPage = () => {
             Christmas Savings Group
           </h1>
           <p className="text-xl md:text-2xl text-christmas-gold font-semibold">
-            Weekly ₹10 Plan 🎁
+            Weekly Plan 🎁
           </p>
           <p className="text-white/80 mt-2">
             48 Weeks • January 2026 - December 2026
@@ -101,22 +101,6 @@ const LandingPage = () => {
                 View My Dashboard 🎄
               </button>
             </form>
-          </div>
-
-          {/* Info Cards */}
-          <div className="grid grid-cols-3 gap-4 mt-8">
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 text-center text-white">
-              <div className="text-2xl font-bold">₹10</div>
-              <div className="text-sm opacity-90">Weekly</div>
-            </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 text-center text-white">
-              <div className="text-2xl font-bold">48</div>
-              <div className="text-sm opacity-90">Weeks</div>
-            </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 text-center text-white">
-              <div className="text-2xl font-bold">₹480</div>
-              <div className="text-sm opacity-90">Total</div>
-            </div>
           </div>
 
           {/* Admin Link */}

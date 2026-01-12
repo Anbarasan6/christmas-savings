@@ -1,5 +1,5 @@
-// Start date: January 1, 2026
-export const START_DATE = new Date('2026-01-01');
+// Start date: January 4, 2026
+export const START_DATE = new Date('2026-01-04');
 export const TOTAL_WEEKS = 48;
 export const WEEKLY_AMOUNT = 10;
 export const TOTAL_AMOUNT = TOTAL_WEEKS * WEEKLY_AMOUNT;

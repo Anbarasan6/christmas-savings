@@ -46,6 +46,14 @@ const Payment = sequelize.define('Payment', {
   paid_date: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  submitted_at: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  has_screenshot: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
 }, {
   tableName: 'payments',

@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS payments (
   utr_no VARCHAR(100),
   status ENUM('PAID', 'PENDING') DEFAULT 'PENDING',
   paid_date DATETIME,
+  submitted_at DATETIME,
+  has_screenshot BOOLEAN DEFAULT FALSE,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
   UNIQUE KEY unique_member_week (member_id, week_no)

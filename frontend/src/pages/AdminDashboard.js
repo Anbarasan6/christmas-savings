@@ -12,6 +12,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [members, setMembers] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Modal states
@@ -35,14 +36,16 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, membersRes, paymentsRes] = await Promise.all([
+      const [statsRes, membersRes, paymentsRes, notificationsRes] = await Promise.all([
         api.get('/payments/stats'),
         api.get('/members'),
-        api.get('/payments')
+        api.get('/payments'),
+        api.get('/payments/notifications')
       ]);
       setStats(statsRes.data);
       setMembers(membersRes.data);
       setPayments(paymentsRes.data);
+      setNotifications(notificationsRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
@@ -156,17 +159,22 @@ const AdminDashboard = () => {
       <div className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4">
           <div className="flex gap-4">
-            {['dashboard', 'members', 'payments'].map((tab) => (
+            {['dashboard', 'notifications', 'members', 'payments'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`py-4 px-6 font-semibold capitalize transition-all border-b-2 ${
+                className={`py-4 px-6 font-semibold capitalize transition-all border-b-2 relative ${
                   activeTab === tab
                     ? 'border-christmas-green text-christmas-green'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
                 {tab}
+                {tab === 'notifications' && notifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {notifications.length}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -226,6 +234,101 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Notifications Tab */}
+        {activeTab === 'notifications' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">
+              Payment Notifications 
+              {notifications.length > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-sm px-3 py-1 rounded-full">
+                  {notifications.length} pending
+                </span>
+              )}
+            </h2>
+
+            {notifications.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-lg p-12 text-center">
+                <div className="text-6xl mb-4">🔔</div>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">No New Notifications</h3>
+                <p className="text-gray-500">All payment submissions have been processed.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {notifications.map((notification) => (
+                  <div key={notification.id} className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-2xl">
+                            {notification.payment_mode === 'CASH' ? '💵' : '📱'}
+                          </span>
+                          <div>
+                            <h3 className="text-lg font-bold text-gray-800">{notification.member_name}</h3>
+                            <p className="text-sm text-gray-500">{notification.member_phone || 'No phone'}</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-sm">
+                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                            Week {notification.week_no}
+                          </span>
+                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded">
+                            ₹{notification.amount}
+                          </span>
+                          <span className={`px-2 py-1 rounded ${
+                            notification.payment_mode === 'CASH' 
+                              ? 'bg-yellow-100 text-yellow-800' 
+                              : 'bg-purple-100 text-purple-800'
+                          }`}>
+                            {notification.payment_mode}
+                          </span>
+                          {notification.has_screenshot && (
+                            <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                              📷 Screenshot attached
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">
+                          Submitted: {new Date(notification.submitted_at).toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            try {
+                              await api.put(`/payments/${notification.id}`, {
+                                status: 'PAID',
+                                payment_mode: notification.payment_mode
+                              });
+                              toast.success('Payment approved!');
+                              fetchData();
+                            } catch (error) {
+                              toast.error('Failed to approve payment');
+                            }
+                          }}
+                          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-all flex items-center gap-1"
+                        >
+                          ✓ Approve
+                        </button>
+                        <button
+                          onClick={() => {
+                            const payment = payments.find(p => p.id === notification.id);
+                            if (payment) {
+                              openPaymentModal(payment);
+                            }
+                          }}
+                          className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-all"
+                        >
+                          View Details
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

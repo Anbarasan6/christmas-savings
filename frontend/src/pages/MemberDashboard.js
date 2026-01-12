@@ -18,6 +18,8 @@ const MemberDashboard = () => {
   const [paymentInitiated, setPaymentInitiated] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState(10);
   const [screenshotFile, setScreenshotFile] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState(null); // 'CASH' or 'UPI'
+  const [showUpiOptions, setShowUpiOptions] = useState(false);
 
   // Get UPI ID from environment variable
   const upiId = process.env.REACT_APP_UPI_ID || '';
@@ -52,35 +54,36 @@ const MemberDashboard = () => {
     setPaymentInitiated(false);
     setPaymentAmount(10);
     setScreenshotFile(null);
+    setPaymentMethod(null);
+    setShowUpiOptions(false);
     setShowPaymentModal(true);
   };
 
-  const initiatePayment = async () => {
+  const initiateUpiPayment = (upiScheme = 'upi://') => {
     if (!paymentAmount || paymentAmount <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
 
-    try {
-      // Construct UPI link with custom amount
-      const upiLink = generateUPILink(upiId, paymentAmount, 'Christmas Chit Week Payment');
-      
-      // Create/update payment record
-      await api.post('/payments', {
-        member_id: memberId,
-        week_no: selectedWeek,
-        amount: paymentAmount
-      });
+    const upiLink = generateUPILink(upiId, paymentAmount, 'Christmas Chit Week Payment');
+    const finalLink = upiScheme === 'upi://' ? upiLink : upiLink.replace('upi://', upiScheme);
+    
+    // Open UPI app via deep link
+    window.location.href = finalLink;
+    setPaymentMethod('UPI');
+    setPaymentInitiated(true);
+    setShowUpiOptions(false);
+    
+    toast.success('UPI app opened. Complete the payment.');
+  };
 
-      // Open UPI app via deep link
-      window.location.href = upiLink;
-      setPaymentInitiated(true);
-      
-      toast.success('UPI app opened. Complete the payment.');
-    } catch (error) {
-      console.error('Error initiating payment:', error);
-      toast.error('Failed to initiate payment');
+  const handleCashPayment = () => {
+    if (!paymentAmount || paymentAmount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
     }
+    setPaymentMethod('CASH');
+    setPaymentInitiated(true);
   };
 
   const handleScreenshotUpload = (e) => {
@@ -92,21 +95,32 @@ const MemberDashboard = () => {
   };
 
   const handleSubmitPayment = async () => {
-    if (!screenshotFile) {
-      toast.error('Please upload payment screenshot');
+    if (!paymentAmount || paymentAmount <= 0) {
+      toast.error('Please enter a valid amount');
       return;
     }
 
     try {
-      const formData = new FormData();
-      formData.append('screenshot', screenshotFile);
-      formData.append('member_id', memberId);
-      formData.append('week_no', selectedWeek);
-      formData.append('amount', paymentAmount);
-
-      await api.post('/payments/upload-screenshot', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      // Create payment request with notification
+      await api.post('/payments/submit', {
+        member_id: memberId,
+        week_no: selectedWeek,
+        amount: paymentAmount,
+        payment_mode: paymentMethod,
+        has_screenshot: !!screenshotFile
       });
+
+      // If screenshot exists, upload it separately
+      if (screenshotFile) {
+        const formData = new FormData();
+        formData.append('screenshot', screenshotFile);
+        formData.append('member_id', memberId);
+        formData.append('week_no', selectedWeek);
+
+        await api.post('/payments/upload-screenshot', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
 
       toast.success('Payment submitted for verification!');
       setShowPaymentModal(false);
@@ -218,88 +232,97 @@ const MemberDashboard = () => {
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-center text-2xl font-bold focus:border-christmas-green focus:outline-none"
                   min="1"
                   placeholder="Enter amount"
+                  disabled={paymentInitiated}
                 />
               </div>
 
               {!paymentInitiated ? (
                 <>
-                  <button
-                    onClick={initiatePayment}
-                    className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-4 rounded-xl font-semibold text-lg hover:from-purple-700 hover:to-purple-800 transition-all mb-4 flex items-center justify-center gap-2"
-                  >
-                    <span>Pay Now ₹{paymentAmount} via UPI</span>
-                    <span className="text-2xl">📱</span>
-                  </button>
-                  
-                  {/* Optional UPI App Buttons */}
-                  <div className="mb-4">
-                    <p className="text-xs text-gray-400 mb-2">Or pay directly with:</p>
-                    <div className="flex justify-center gap-3">
-                      <button
-                        onClick={() => {
-                          const link = generateUPILink(upiId, paymentAmount, 'Christmas Chit Week Payment');
-                          window.location.href = link.replace('upi://', 'gpay://upi/');
-                        }}
-                        className="flex flex-col items-center p-2 rounded-lg hover:bg-gray-100 transition-all"
-                        title="Google Pay"
-                      >
-                        <div className="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center text-lg">💳</div>
-                        <span className="text-xs text-gray-600 mt-1">GPay</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          const link = generateUPILink(upiId, paymentAmount, 'Christmas Chit Week Payment');
-                          window.location.href = link.replace('upi://', 'phonepe://');
-                        }}
-                        className="flex flex-col items-center p-2 rounded-lg hover:bg-gray-100 transition-all"
-                        title="PhonePe"
-                      >
-                        <div className="w-10 h-10 bg-purple-600 rounded-full shadow-md flex items-center justify-center text-white text-lg">₹</div>
-                        <span className="text-xs text-gray-600 mt-1">PhonePe</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          const link = generateUPILink(upiId, paymentAmount, 'Christmas Chit Week Payment');
-                          window.location.href = link.replace('upi://', 'paytmmp://');
-                        }}
-                        className="flex flex-col items-center p-2 rounded-lg hover:bg-gray-100 transition-all"
-                        title="Paytm"
-                      >
-                        <div className="w-10 h-10 bg-blue-500 rounded-full shadow-md flex items-center justify-center text-white text-lg">P</div>
-                        <span className="text-xs text-gray-600 mt-1">Paytm</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          const link = generateUPILink(upiId, paymentAmount, 'Christmas Chit Week Payment');
-                          window.location.href = link;
-                        }}
-                        className="flex flex-col items-center p-2 rounded-lg hover:bg-gray-100 transition-all"
-                        title="BHIM UPI"
-                      >
-                        <div className="w-10 h-10 bg-green-600 rounded-full shadow-md flex items-center justify-center text-white text-lg">B</div>
-                        <span className="text-xs text-gray-600 mt-1">BHIM</span>
-                      </button>
-                    </div>
+                  {/* Payment Method Selection */}
+                  <div className="space-y-3">
+                    {/* Cash Button */}
+                    <button
+                      onClick={handleCashPayment}
+                      className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl font-semibold text-lg hover:from-green-700 hover:to-green-800 transition-all flex items-center justify-center gap-2"
+                    >
+                      <span className="text-2xl">💵</span>
+                      <span>Cash ₹{paymentAmount}</span>
+                    </button>
+
+                    {/* UPI Button */}
+                    <button
+                      onClick={() => setShowUpiOptions(!showUpiOptions)}
+                      className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-4 rounded-xl font-semibold text-lg hover:from-purple-700 hover:to-purple-800 transition-all flex items-center justify-center gap-2"
+                    >
+                      <span className="text-2xl">📱</span>
+                      <span>Pay Now ₹{paymentAmount} via UPI</span>
+                      <span className="text-lg">{showUpiOptions ? '▲' : '▼'}</span>
+                    </button>
+
+                    {/* UPI App Options - shown when UPI button clicked */}
+                    {showUpiOptions && (
+                      <div className="bg-gray-50 rounded-xl p-4 animate-fadeIn">
+                        <p className="text-xs text-gray-500 mb-3 text-center">Select UPI App:</p>
+                        <div className="flex justify-center gap-4">
+                          <button
+                            onClick={() => initiateUpiPayment('gpay://upi/')}
+                            className="flex flex-col items-center p-3 rounded-xl hover:bg-white hover:shadow-md transition-all"
+                            title="Google Pay"
+                          >
+                            <div className="w-12 h-12 bg-white rounded-full shadow-md flex items-center justify-center text-xl border-2 border-gray-100">💳</div>
+                            <span className="text-xs text-gray-700 mt-2 font-medium">GPay</span>
+                          </button>
+                          <button
+                            onClick={() => initiateUpiPayment('phonepe://')}
+                            className="flex flex-col items-center p-3 rounded-xl hover:bg-white hover:shadow-md transition-all"
+                            title="PhonePe"
+                          >
+                            <div className="w-12 h-12 bg-purple-600 rounded-full shadow-md flex items-center justify-center text-white text-xl">₹</div>
+                            <span className="text-xs text-gray-700 mt-2 font-medium">PhonePe</span>
+                          </button>
+                          <button
+                            onClick={() => initiateUpiPayment('paytmmp://')}
+                            className="flex flex-col items-center p-3 rounded-xl hover:bg-white hover:shadow-md transition-all"
+                            title="Paytm"
+                          >
+                            <div className="w-12 h-12 bg-blue-500 rounded-full shadow-md flex items-center justify-center text-white text-xl font-bold">P</div>
+                            <span className="text-xs text-gray-700 mt-2 font-medium">Paytm</span>
+                          </button>
+                          <button
+                            onClick={() => initiateUpiPayment('upi://')}
+                            className="flex flex-col items-center p-3 rounded-xl hover:bg-white hover:shadow-md transition-all"
+                            title="BHIM UPI"
+                          >
+                            <div className="w-12 h-12 bg-green-600 rounded-full shadow-md flex items-center justify-center text-white text-xl font-bold">B</div>
+                            <span className="text-xs text-gray-700 mt-2 font-medium">BHIM</span>
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-3 text-center">
+                          Android only • Opens your UPI app
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  
-                  <p className="text-xs text-gray-400">
-                    Android only • Opens your UPI app
-                  </p>
                 </>
               ) : (
                 <div className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <div className="text-blue-600 text-lg font-semibold mb-2">
-                      📱 UPI App Opened
+                  {/* Payment Method Info */}
+                  <div className={`border rounded-xl p-4 ${paymentMethod === 'CASH' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
+                    <div className={`text-lg font-semibold mb-2 ${paymentMethod === 'CASH' ? 'text-green-600' : 'text-blue-600'}`}>
+                      {paymentMethod === 'CASH' ? '💵 Cash Payment' : '📱 UPI Payment Initiated'}
                     </div>
                     <p className="text-gray-600 text-sm">
-                      After completing payment in your UPI app, please upload the screenshot below.
+                      {paymentMethod === 'CASH' 
+                        ? 'Please hand over the cash to the admin and submit below.'
+                        : 'After completing payment in your UPI app, please upload the screenshot below (optional).'}
                     </p>
                   </div>
 
-                  {/* Screenshot Upload */}
+                  {/* Screenshot Upload - Optional */}
                   <div className="border-2 border-dashed border-gray-300 rounded-xl p-4">
-                    <label className="block text-gray-700 text-sm font-semibold mb-2">Upload Payment Screenshot</label>
+                    <label className="block text-gray-700 text-sm font-semibold mb-2">
+                      Upload Payment Screenshot <span className="text-gray-400 font-normal">(Optional)</span>
+                    </label>
                     <input
                       type="file"
                       accept="image/*"
@@ -311,15 +334,10 @@ const MemberDashboard = () => {
                     )}
                   </div>
 
-                  {/* Submit Button */}
+                  {/* Submit Button - Always enabled now */}
                   <button
                     onClick={handleSubmitPayment}
-                    disabled={!screenshotFile}
-                    className={`w-full py-4 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 ${
-                      screenshotFile
-                        ? 'bg-gradient-to-r from-christmas-green to-green-600 text-white hover:from-green-700 hover:to-green-800'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
+                    className="w-full py-4 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-christmas-green to-green-600 text-white hover:from-green-700 hover:to-green-800"
                   >
                     <span>Submit Payment</span>
                     <span className="text-xl">✓</span>
