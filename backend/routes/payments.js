@@ -114,7 +114,7 @@ router.post('/', async (req, res) => {
 // Submit payment with notification (public - for member payment submission)
 router.post('/submit', async (req, res) => {
   try {
-    const { member_id, week_no, amount, payment_mode, has_screenshot } = req.body;
+    const { member_id, week_no, amount, payment_mode } = req.body;
 
     // Get member details
     const member = await Member.findByPk(member_id);
@@ -141,8 +141,7 @@ router.post('/submit', async (req, res) => {
         amount: amount || 10,
         payment_mode: payment_mode || 'UPI',
         status: 'PENDING',
-        submitted_at: new Date(),
-        has_screenshot: has_screenshot || false
+        submitted_at: new Date()
       });
     } else {
       // Create new payment
@@ -153,8 +152,7 @@ router.post('/submit', async (req, res) => {
         amount: amount || 10,
         status: 'PENDING',
         payment_mode: payment_mode || 'UPI',
-        submitted_at: new Date(),
-        has_screenshot: has_screenshot || false
+        submitted_at: new Date()
       });
     }
 
@@ -197,8 +195,7 @@ router.get('/notifications', authMiddleware, async (req, res) => {
       week_no: p.week_no,
       amount: p.amount,
       payment_mode: p.payment_mode,
-      submitted_at: p.submitted_at,
-      has_screenshot: p.has_screenshot
+      submitted_at: p.submitted_at
     }));
 
     res.json(notifications);

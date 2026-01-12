@@ -284,11 +284,6 @@ const AdminDashboard = () => {
                           }`}>
                             {notification.payment_mode}
                           </span>
-                          {notification.has_screenshot && (
-                            <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded">
-                              📷 Screenshot attached
-                            </span>
-                          )}
                         </div>
                         <p className="text-xs text-gray-400 mt-2">
                           Submitted: {new Date(notification.submitted_at).toLocaleString('en-IN')}

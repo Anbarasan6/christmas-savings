@@ -17,7 +17,6 @@ const MemberDashboard = () => {
   const [selectedWeek, setSelectedWeek] = useState(null);
   const [paymentInitiated, setPaymentInitiated] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState(10);
-  const [screenshotFile, setScreenshotFile] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState(null); // 'CASH' or 'UPI'
   const [showUpiOptions, setShowUpiOptions] = useState(false);
 
@@ -53,7 +52,6 @@ const MemberDashboard = () => {
     setSelectedWeek(weekNo);
     setPaymentInitiated(false);
     setPaymentAmount(10);
-    setScreenshotFile(null);
     setPaymentMethod(null);
     setShowUpiOptions(false);
     setShowPaymentModal(true);
@@ -86,14 +84,6 @@ const MemberDashboard = () => {
     setPaymentInitiated(true);
   };
 
-  const handleScreenshotUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setScreenshotFile(file);
-      toast.success('Screenshot selected!');
-    }
-  };
-
   const handleSubmitPayment = async () => {
     if (!paymentAmount || paymentAmount <= 0) {
       toast.error('Please enter a valid amount');
@@ -106,21 +96,8 @@ const MemberDashboard = () => {
         member_id: memberId,
         week_no: selectedWeek,
         amount: paymentAmount,
-        payment_mode: paymentMethod,
-        has_screenshot: !!screenshotFile
+        payment_mode: paymentMethod
       });
-
-      // If screenshot exists, upload it separately
-      if (screenshotFile) {
-        const formData = new FormData();
-        formData.append('screenshot', screenshotFile);
-        formData.append('member_id', memberId);
-        formData.append('week_no', selectedWeek);
-
-        await api.post('/payments/upload-screenshot', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-      }
 
       toast.success('Payment submitted for verification!');
       setShowPaymentModal(false);
@@ -314,27 +291,11 @@ const MemberDashboard = () => {
                     <p className="text-gray-600 text-sm">
                       {paymentMethod === 'CASH' 
                         ? 'Please hand over the cash to the admin and submit below.'
-                        : 'After completing payment in your UPI app, please upload the screenshot below (optional).'}
+                        : 'After completing payment in your UPI app, click submit below.'}
                     </p>
                   </div>
 
-                  {/* Screenshot Upload - Optional */}
-                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-4">
-                    <label className="block text-gray-700 text-sm font-semibold mb-2">
-                      Upload Payment Screenshot <span className="text-gray-400 font-normal">(Optional)</span>
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleScreenshotUpload}
-                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-christmas-green file:text-white hover:file:bg-green-700"
-                    />
-                    {screenshotFile && (
-                      <p className="text-green-600 text-sm mt-2">✓ {screenshotFile.name}</p>
-                    )}
-                  </div>
-
-                  {/* Submit Button - Always enabled now */}
+                  {/* Submit Button */}
                   <button
                     onClick={handleSubmitPayment}
                     className="w-full py-4 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-christmas-green to-green-600 text-white hover:from-green-700 hover:to-green-800"
