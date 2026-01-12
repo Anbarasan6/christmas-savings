@@ -81,7 +81,7 @@ const LandingPage = () => {
                   >
                     <option value="">-- Choose your name --</option>
                     {members.map((member) => (
-                      <option key={member._id} value={member._id}>
+                      <option key={member.id} value={member.id}>
                         {member.name}
                       </option>
                     ))}
