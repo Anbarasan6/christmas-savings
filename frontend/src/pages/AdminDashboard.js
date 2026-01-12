@@ -71,7 +71,7 @@ const AdminDashboard = () => {
   const saveMember = async () => {
     try {
       if (editingMember) {
-        await api.put(`/members/${editingMember._id}`, memberForm);
+        await api.put(`/members/${editingMember.id}`, memberForm);
         toast.success('Member updated successfully');
       } else {
         await api.post('/members', memberForm);
@@ -110,7 +110,7 @@ const AdminDashboard = () => {
 
   const savePayment = async () => {
     try {
-      await api.put(`/payments/${selectedPayment._id}`, paymentForm);
+      await api.put(`/payments/${selectedPayment.id}`, paymentForm);
       toast.success('Payment updated successfully');
       setShowPaymentModal(false);
       fetchData();
@@ -121,7 +121,7 @@ const AdminDashboard = () => {
 
   // Filter payments
   const filteredPayments = payments.filter(p => {
-    if (filterMember && p.member_id?._id !== filterMember) return false;
+    if (filterMember && String(p.member_id?.id) !== filterMember) return false;
     if (filterWeek && p.week_no !== parseInt(filterWeek)) return false;
     if (filterStatus && p.status !== filterStatus) return false;
     return true;
@@ -255,10 +255,10 @@ const AdminDashboard = () => {
                 </thead>
                 <tbody>
                   {members.map((member) => {
-                    const memberPayments = payments.filter(p => p.member_id?._id === member._id);
+                    const memberPayments = payments.filter(p => p.member_id?.id === member.id);
                     const paidCount = memberPayments.filter(p => p.status === 'PAID').length;
                     return (
-                      <tr key={member._id} className="border-b hover:bg-gray-50">
+                      <tr key={member.id} className="border-b hover:bg-gray-50">
                         <td className="p-4 font-semibold">{member.name}</td>
                         <td className="p-4">{member.phone || '-'}</td>
                         <td className="p-4">{formatDate(member.created_at)}</td>
@@ -275,7 +275,7 @@ const AdminDashboard = () => {
                             Edit
                           </button>
                           <button
-                            onClick={() => deleteMember(member._id)}
+                            onClick={() => deleteMember(member.id)}
                             className="text-red-600 hover:text-red-800"
                           >
                             Delete
@@ -307,7 +307,7 @@ const AdminDashboard = () => {
                   >
                     <option value="">All Members</option>
                     {members.map((m) => (
-                      <option key={m._id} value={m._id}>{m.name}</option>
+                      <option key={m.id} value={m.id}>{m.name}</option>
                     ))}
                   </select>
                 </div>
@@ -369,7 +369,7 @@ const AdminDashboard = () => {
                   </thead>
                   <tbody>
                     {filteredPayments.slice(0, 100).map((payment) => (
-                      <tr key={payment._id} className="border-b hover:bg-gray-50">
+                      <tr key={payment.id} className="border-b hover:bg-gray-50">
                         <td className="p-4 font-semibold">{payment.member_id?.name || 'Unknown'}</td>
                         <td className="p-4">Week {payment.week_no}</td>
                         <td className="p-4 text-sm text-gray-600">
