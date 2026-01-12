@@ -51,13 +51,13 @@ export const isCurrentWeek = (weekNo) => {
 };
 
 // Generate UPI deep link
-export const generateUPILink = (upiId, memberName, weekNo) => {
+export const generateUPILink = (upiId, amount = WEEKLY_AMOUNT, note = 'Christmas Chit Week Payment') => {
   const params = new URLSearchParams({
     pa: upiId,
-    pn: 'Christmas Savings',
-    am: WEEKLY_AMOUNT.toString(),
+    pn: 'Christmas Chit',
+    am: amount.toString(),
     cu: 'INR',
-    tn: `Week ${weekNo} Payment - ${memberName}`
+    tn: note
   });
   return `upi://pay?${params.toString()}`;
 };
