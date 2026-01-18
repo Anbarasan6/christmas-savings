@@ -4,7 +4,7 @@ import api from '../utils/api';
 import Snowfall from '../components/Snowfall';
 import WeekCalendar from '../components/WeekCalendar';
 import PaymentSummary from '../components/PaymentSummary';
-import { generateUPILink, getWeekNumber, getWeekStartDate, getWeekEndDate, formatDate, isWeekPast } from '../utils/helpers';
+import { getWeekNumber, getWeekStartDate, getWeekEndDate, formatDate } from '../utils/helpers';
 import toast from 'react-hot-toast';
 
 const MemberDashboard = () => {
@@ -16,7 +16,8 @@ const MemberDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(null);
-  const [paymentInitiated, setPaymentInitiated] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState(null); // 'CASH' or 'UPI'
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -47,28 +48,31 @@ const MemberDashboard = () => {
       return;
     }
     setSelectedWeek(weekNo);
-    setPaymentInitiated(false);
+    setPaymentMethod(null);
+    setCopied(false);
     setShowPaymentModal(true);
   };
 
-  const initiatePayment = async () => {
+  const copyUpiId = () => {
+    navigator.clipboard.writeText(upiId);
+    setCopied(true);
+    toast.success('UPI ID copied!');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSubmitPayment = async () => {
     try {
-      const upiLink = generateUPILink(upiId, member.name, selectedWeek);
-      
-      // Create/update payment record
       await api.post('/payments', {
         member_id: memberId,
-        week_no: selectedWeek
+        week_no: selectedWeek,
+        payment_mode: paymentMethod
       });
-
-      // Open UPI app
-      window.location.href = upiLink;
-      setPaymentInitiated(true);
-      
-      toast.success('Payment app opened. Complete the payment.');
+      toast.success('Payment submitted for verification!');
+      setShowPaymentModal(false);
+      fetchData();
     } catch (error) {
-      console.error('Error initiating payment:', error);
-      toast.error('Failed to initiate payment');
+      console.error('Error submitting payment:', error);
+      toast.error('Failed to submit payment');
     }
   };
 
@@ -93,7 +97,7 @@ const MemberDashboard = () => {
             <h1 className="font-christmas text-3xl md:text-4xl text-white drop-shadow-lg">
               🎄 Christmas Savings Group
             </h1>
-            <p className="text-christmas-gold">Weekly ₹10 Plan</p>
+            <p className="text-christmas-gold">Weekly Plan</p>
           </div>
           <button
             onClick={() => navigate('/')}
@@ -137,7 +141,7 @@ const MemberDashboard = () => {
               onClick={() => handlePayClick(currentWeek, payments.find(p => p.week_no === currentWeek))}
               className="bg-gradient-to-r from-christmas-red to-red-600 text-white px-6 py-4 rounded-full shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all flex items-center gap-2 text-lg font-semibold"
             >
-              💳 Pay Week {currentWeek} - ₹10
+              💳 Pay Week {currentWeek}
             </button>
           </div>
         )}
@@ -159,39 +163,80 @@ const MemberDashboard = () => {
               <h3 className="text-2xl font-bold text-gray-800 mb-2">
                 Pay for Week {selectedWeek}
               </h3>
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-600 mb-6">
                 {formatDate(getWeekStartDate(selectedWeek))} - {formatDate(getWeekEndDate(selectedWeek))}
               </p>
 
-              <div className="bg-gradient-to-r from-christmas-green to-green-600 text-white rounded-xl p-4 mb-6">
-                <div className="text-4xl font-bold">₹10</div>
-                <div className="text-sm opacity-90">Weekly Savings</div>
-              </div>
-
-              {!paymentInitiated ? (
-                <>
+              {/* Payment Method Selection */}
+              {!paymentMethod ? (
+                <div className="space-y-3">
                   <button
-                    onClick={initiatePayment}
-                    className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-4 rounded-xl font-semibold text-lg hover:from-purple-700 hover:to-purple-800 transition-all mb-4 flex items-center justify-center gap-2"
+                    onClick={() => setPaymentMethod('CASH')}
+                    className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl font-semibold text-lg hover:from-green-700 hover:to-green-800 transition-all flex items-center justify-center gap-2"
                   >
-                    <span>Pay ₹10 via UPI</span>
-                    <span className="text-2xl">📱</span>
+                    <span className="text-2xl">💵</span>
+                    <span>Cash</span>
                   </button>
-                  <p className="text-sm text-gray-500">
-                    This will open your UPI app (GPay, PhonePe, Paytm, etc.)
-                  </p>
-                </>
+                  <button
+                    onClick={() => setPaymentMethod('UPI')}
+                    className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-4 rounded-xl font-semibold text-lg hover:from-purple-700 hover:to-purple-800 transition-all flex items-center justify-center gap-2"
+                  >
+                    <span className="text-2xl">📱</span>
+                    <span>Pay via UPI</span>
+                  </button>
+                </div>
               ) : (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                  <div className="text-yellow-600 text-lg font-semibold mb-2">
-                    ⏳ Payment Sent?
+                <div className="space-y-4">
+                  {/* Selected Method Info */}
+                  <div className={`border rounded-xl p-4 ${paymentMethod === 'CASH' ? 'bg-green-50 border-green-200' : 'bg-purple-50 border-purple-200'}`}>
+                    <div className={`text-lg font-semibold ${paymentMethod === 'CASH' ? 'text-green-600' : 'text-purple-600'}`}>
+                      {paymentMethod === 'CASH' ? '💵 Cash Payment' : '📱 UPI Payment'}
+                    </div>
                   </div>
-                  <p className="text-gray-600 text-sm mb-4">
-                    If you completed the payment, the admin will verify and mark it as paid.
+
+                  {/* UPI ID with Copy - Only for UPI */}
+                  {paymentMethod === 'UPI' && (
+                    <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-4">
+                      <p className="text-sm text-gray-500 mb-2">Send payment to this UPI ID:</p>
+                      <div className="flex items-center justify-between bg-white rounded-lg p-3 border">
+                        <span className="font-mono text-lg font-semibold text-gray-800 break-all">{upiId}</span>
+                        <button
+                          onClick={copyUpiId}
+                          className={`ml-2 px-3 py-1 rounded-lg text-sm font-semibold transition-all ${
+                            copied 
+                              ? 'bg-green-100 text-green-600' 
+                              : 'bg-purple-100 text-purple-600 hover:bg-purple-200'
+                          }`}
+                        >
+                          {copied ? '✓ Copied' : '📋 Copy'}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2">
+                        Open GPay/PhonePe/Paytm, send money to this UPI ID
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
+                  <button
+                    onClick={handleSubmitPayment}
+                    className="w-full py-4 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-christmas-green to-green-600 text-white hover:from-green-700 hover:to-green-800"
+                  >
+                    <span>Submit Payment</span>
+                    <span className="text-xl">✓</span>
+                  </button>
+
+                  {/* Change Method */}
+                  <button
+                    onClick={() => setPaymentMethod(null)}
+                    className="w-full text-gray-500 text-sm hover:text-gray-700"
+                  >
+                    ← Change payment method
+                  </button>
+
+                  <p className="text-xs text-gray-500 text-center">
+                    Admin will verify your payment and update the status
                   </p>
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-green-700 text-sm">
-                    ✓ Payment initiated. Awaiting admin confirmation.
-                  </div>
                 </div>
               )}
             </div>
