@@ -213,86 +213,34 @@ const MemberDashboard = () => {
                 />
               </div>
 
-              {!paymentInitiated ? (
-                <>
-                  {/* Payment Method Selection */}
-                  <div className="space-y-3">
-                    {/* Cash Button */}
-                    <button
-                      onClick={handleCashPayment}
-                      className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl font-semibold text-lg hover:from-green-700 hover:to-green-800 transition-all flex items-center justify-center gap-2"
-                    >
-                      <span className="text-2xl">💵</span>
-                      <span>Cash ₹{paymentAmount}</span>
-                    </button>
+              {/* Payment Method Selection */}
+              {!paymentMethod ? (
+                <div className="space-y-3">
+                  {/* Cash Button */}
+                  <button
+                    onClick={() => setPaymentMethod('CASH')}
+                    className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl font-semibold text-lg hover:from-green-700 hover:to-green-800 transition-all flex items-center justify-center gap-2"
+                  >
+                    <span className="text-2xl">💵</span>
+                    <span>Cash</span>
+                  </button>
 
-                    {/* UPI Button */}
-                    <button
-                      onClick={() => setShowUpiOptions(!showUpiOptions)}
-                      className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-4 rounded-xl font-semibold text-lg hover:from-purple-700 hover:to-purple-800 transition-all flex items-center justify-center gap-2"
-                    >
-                      <span className="text-2xl">📱</span>
-                      <span>Pay Now ₹{paymentAmount} via UPI</span>
-                      <span className="text-lg">{showUpiOptions ? '▲' : '▼'}</span>
-                    </button>
-
-                    {/* UPI App Options - shown when UPI button clicked */}
-                    {showUpiOptions && (
-                      <div className="bg-gray-50 rounded-xl p-4 animate-fadeIn">
-                        <p className="text-xs text-gray-500 mb-3 text-center">Select UPI App:</p>
-                        <div className="flex justify-center gap-4">
-                          <button
-                            onClick={() => initiateUpiPayment('gpay://upi/')}
-                            className="flex flex-col items-center p-3 rounded-xl hover:bg-white hover:shadow-md transition-all"
-                            title="Google Pay"
-                          >
-                            <div className="w-12 h-12 bg-white rounded-full shadow-md flex items-center justify-center text-xl border-2 border-gray-100">💳</div>
-                            <span className="text-xs text-gray-700 mt-2 font-medium">GPay</span>
-                          </button>
-                          <button
-                            onClick={() => initiateUpiPayment('phonepe://')}
-                            className="flex flex-col items-center p-3 rounded-xl hover:bg-white hover:shadow-md transition-all"
-                            title="PhonePe"
-                          >
-                            <div className="w-12 h-12 bg-purple-600 rounded-full shadow-md flex items-center justify-center text-white text-xl">₹</div>
-                            <span className="text-xs text-gray-700 mt-2 font-medium">PhonePe</span>
-                          </button>
-                          <button
-                            onClick={() => initiateUpiPayment('paytmmp://')}
-                            className="flex flex-col items-center p-3 rounded-xl hover:bg-white hover:shadow-md transition-all"
-                            title="Paytm"
-                          >
-                            <div className="w-12 h-12 bg-blue-500 rounded-full shadow-md flex items-center justify-center text-white text-xl font-bold">P</div>
-                            <span className="text-xs text-gray-700 mt-2 font-medium">Paytm</span>
-                          </button>
-                          <button
-                            onClick={() => initiateUpiPayment('upi://')}
-                            className="flex flex-col items-center p-3 rounded-xl hover:bg-white hover:shadow-md transition-all"
-                            title="BHIM UPI"
-                          >
-                            <div className="w-12 h-12 bg-green-600 rounded-full shadow-md flex items-center justify-center text-white text-xl font-bold">B</div>
-                            <span className="text-xs text-gray-700 mt-2 font-medium">BHIM</span>
-                          </button>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-3 text-center">
-                          Android only • Opens your UPI app
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </>
+                  {/* UPI Button */}
+                  <button
+                    onClick={() => setPaymentMethod('UPI')}
+                    className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-4 rounded-xl font-semibold text-lg hover:from-purple-700 hover:to-purple-800 transition-all flex items-center justify-center gap-2"
+                  >
+                    <span className="text-2xl">📱</span>
+                    <span>UPI</span>
+                  </button>
+                </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Payment Method Info */}
-                  <div className={`border rounded-xl p-4 ${paymentMethod === 'CASH' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
-                    <div className={`text-lg font-semibold mb-2 ${paymentMethod === 'CASH' ? 'text-green-600' : 'text-blue-600'}`}>
-                      {paymentMethod === 'CASH' ? '💵 Cash Payment' : '📱 UPI Payment Initiated'}
+                  {/* Selected Payment Method */}
+                  <div className={`border rounded-xl p-4 ${paymentMethod === 'CASH' ? 'bg-green-50 border-green-200' : 'bg-purple-50 border-purple-200'}`}>
+                    <div className={`text-lg font-semibold ${paymentMethod === 'CASH' ? 'text-green-600' : 'text-purple-600'}`}>
+                      {paymentMethod === 'CASH' ? '💵 Cash Payment' : '📱 UPI Payment'}
                     </div>
-                    <p className="text-gray-600 text-sm">
-                      {paymentMethod === 'CASH' 
-                        ? 'Please hand over the cash to the admin and submit below.'
-                        : 'After completing payment in your UPI app, click submit below.'}
-                    </p>
                   </div>
 
                   {/* Submit Button */}
@@ -300,8 +248,16 @@ const MemberDashboard = () => {
                     onClick={handleSubmitPayment}
                     className="w-full py-4 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-christmas-green to-green-600 text-white hover:from-green-700 hover:to-green-800"
                   >
-                    <span>Submit Payment</span>
+                    <span>Submit ₹{paymentAmount}</span>
                     <span className="text-xl">✓</span>
+                  </button>
+
+                  {/* Change Method Button */}
+                  <button
+                    onClick={() => setPaymentMethod(null)}
+                    className="w-full text-gray-500 text-sm hover:text-gray-700"
+                  >
+                    ← Change payment method
                   </button>
 
                   <p className="text-xs text-gray-500 text-center">
