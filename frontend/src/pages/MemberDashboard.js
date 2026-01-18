@@ -21,7 +21,7 @@ const MemberDashboard = () => {
   const [showUpiOptions, setShowUpiOptions] = useState(false);
 
   // Get UPI ID from environment variable
-  const upiId = process.env.REACT_APP_UPI_ID || '';
+  const upiId = process.env.REACT_APP_UPI_ID || 'anbarasanshanmugam66@okhdfcbank';
 
   useEffect(() => {
     fetchData();
