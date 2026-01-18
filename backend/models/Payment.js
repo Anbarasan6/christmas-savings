@@ -46,10 +46,6 @@ const Payment = sequelize.define('Payment', {
   paid_date: {
     type: DataTypes.DATE,
     allowNull: true
-  },
-  submitted_at: {
-    type: DataTypes.DATE,
-    allowNull: true
   }
 }, {
   tableName: 'payments',

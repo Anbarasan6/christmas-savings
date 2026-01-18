@@ -90,7 +90,7 @@ router.post('/', async (req, res) => {
     }
 
     if (!payment) {
-      const startDate = new Date('2026-01-04');
+      const startDate = new Date('2026-01-01');
       const weekStartDate = new Date(startDate);
       weekStartDate.setDate(startDate.getDate() + (week_no - 1) * 7);
 
@@ -107,100 +107,6 @@ router.post('/', async (req, res) => {
     res.json({ message: 'Payment initiated', payment });
   } catch (error) {
     console.error('Error creating payment:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Submit payment with notification (public - for member payment submission)
-router.post('/submit', async (req, res) => {
-  try {
-    const { member_id, week_no, amount, payment_mode } = req.body;
-
-    // Get member details
-    const member = await Member.findByPk(member_id);
-    if (!member) {
-      return res.status(404).json({ message: 'Member not found' });
-    }
-
-    // Check if payment already exists
-    let payment = await Payment.findOne({ 
-      where: { member_id, week_no } 
-    });
-    
-    if (payment && payment.status === 'PAID') {
-      return res.status(400).json({ message: 'Payment already completed for this week' });
-    }
-
-    const startDate = new Date('2026-01-04');
-    const weekStartDate = new Date(startDate);
-    weekStartDate.setDate(startDate.getDate() + (week_no - 1) * 7);
-
-    if (payment) {
-      // Update existing payment
-      await payment.update({
-        amount: amount || 10,
-        payment_mode: payment_mode || 'UPI',
-        status: 'PENDING',
-        submitted_at: new Date()
-      });
-    } else {
-      // Create new payment
-      payment = await Payment.create({
-        member_id,
-        week_no,
-        week_start_date: weekStartDate,
-        amount: amount || 10,
-        status: 'PENDING',
-        payment_mode: payment_mode || 'UPI',
-        submitted_at: new Date()
-      });
-    }
-
-    res.json({ 
-      message: 'Payment submitted successfully', 
-      payment,
-      notification: {
-        member_name: member.name,
-        week_no,
-        amount: amount || 10,
-        payment_mode: payment_mode || 'UPI'
-      }
-    });
-  } catch (error) {
-    console.error('Error submitting payment:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Get pending payments for notifications (admin only)
-router.get('/notifications', authMiddleware, async (req, res) => {
-  try {
-    const pendingPayments = await Payment.findAll({
-      where: { 
-        status: 'PENDING',
-        submitted_at: { [Op.ne]: null }
-      },
-      include: [{
-        model: Member,
-        as: 'member',
-        attributes: ['id', 'name', 'phone']
-      }],
-      order: [['submitted_at', 'DESC']]
-    });
-
-    const notifications = pendingPayments.map(p => ({
-      id: p.id,
-      member_name: p.member?.name || 'Unknown',
-      member_phone: p.member?.phone || '',
-      week_no: p.week_no,
-      amount: p.amount,
-      payment_mode: p.payment_mode,
-      submitted_at: p.submitted_at
-    }));
-
-    res.json(notifications);
-  } catch (error) {
-    console.error('Error fetching notifications:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

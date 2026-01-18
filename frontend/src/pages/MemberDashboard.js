@@ -12,16 +12,11 @@ const MemberDashboard = () => {
   const navigate = useNavigate();
   const [member, setMember] = useState(null);
   const [payments, setPayments] = useState([]);
+  const [upiId, setUpiId] = useState('');
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(null);
   const [paymentInitiated, setPaymentInitiated] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState(10);
-  const [paymentMethod, setPaymentMethod] = useState(null); // 'CASH' or 'UPI'
-  const [showUpiOptions, setShowUpiOptions] = useState(false);
-
-  // Get UPI ID from environment variable
-  const upiId = process.env.REACT_APP_UPI_ID || 'anbarasanshanmugam66@okhdfcbank';
 
   useEffect(() => {
     fetchData();
@@ -29,12 +24,14 @@ const MemberDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [memberRes, paymentsRes] = await Promise.all([
+      const [memberRes, paymentsRes, configRes] = await Promise.all([
         api.get(`/members/${memberId}`),
-        api.get(`/payments/member/${memberId}`)
+        api.get(`/payments/member/${memberId}`),
+        api.get('/config')
       ]);
       setMember(memberRes.data);
       setPayments(paymentsRes.data);
+      setUpiId(configRes.data.upiId);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
@@ -51,60 +48,27 @@ const MemberDashboard = () => {
     }
     setSelectedWeek(weekNo);
     setPaymentInitiated(false);
-    setPaymentAmount(10);
-    setPaymentMethod(null);
-    setShowUpiOptions(false);
     setShowPaymentModal(true);
   };
 
-  const initiateUpiPayment = (upiScheme = 'upi://') => {
-    if (!paymentAmount || paymentAmount <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-
-    const upiLink = generateUPILink(upiId, paymentAmount, 'Christmas Chit Week Payment');
-    const finalLink = upiScheme === 'upi://' ? upiLink : upiLink.replace('upi://', upiScheme);
-    
-    // Open UPI app via deep link
-    window.location.href = finalLink;
-    setPaymentMethod('UPI');
-    setPaymentInitiated(true);
-    setShowUpiOptions(false);
-    
-    toast.success('UPI app opened. Complete the payment.');
-  };
-
-  const handleCashPayment = () => {
-    if (!paymentAmount || paymentAmount <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-    setPaymentMethod('CASH');
-    setPaymentInitiated(true);
-  };
-
-  const handleSubmitPayment = async () => {
-    if (!paymentAmount || paymentAmount <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-
+  const initiatePayment = async () => {
     try {
-      // Create payment request with notification
-      await api.post('/payments/submit', {
+      const upiLink = generateUPILink(upiId, member.name, selectedWeek);
+      
+      // Create/update payment record
+      await api.post('/payments', {
         member_id: memberId,
-        week_no: selectedWeek,
-        amount: paymentAmount,
-        payment_mode: paymentMethod
+        week_no: selectedWeek
       });
 
-      toast.success('Payment submitted for verification!');
-      setShowPaymentModal(false);
-      fetchData();
+      // Open UPI app
+      window.location.href = upiLink;
+      setPaymentInitiated(true);
+      
+      toast.success('Payment app opened. Complete the payment.');
     } catch (error) {
-      console.error('Error submitting payment:', error);
-      toast.error('Failed to submit payment');
+      console.error('Error initiating payment:', error);
+      toast.error('Failed to initiate payment');
     }
   };
 
@@ -199,70 +163,35 @@ const MemberDashboard = () => {
                 {formatDate(getWeekStartDate(selectedWeek))} - {formatDate(getWeekEndDate(selectedWeek))}
               </p>
 
-              {/* Amount Input */}
-              <div className="mb-6">
-                <label className="block text-gray-700 text-sm font-semibold mb-2">Enter Amount (₹)</label>
-                <input
-                  type="number"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(Number(e.target.value))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-center text-2xl font-bold focus:border-christmas-green focus:outline-none"
-                  min="1"
-                  placeholder="Enter amount"
-                  disabled={paymentInitiated}
-                />
+              <div className="bg-gradient-to-r from-christmas-green to-green-600 text-white rounded-xl p-4 mb-6">
+                <div className="text-4xl font-bold">₹10</div>
+                <div className="text-sm opacity-90">Weekly Savings</div>
               </div>
 
-              {/* Payment Method Selection */}
-              {!paymentMethod ? (
-                <div className="space-y-3">
-                  {/* Cash Button */}
+              {!paymentInitiated ? (
+                <>
                   <button
-                    onClick={() => setPaymentMethod('CASH')}
-                    className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 rounded-xl font-semibold text-lg hover:from-green-700 hover:to-green-800 transition-all flex items-center justify-center gap-2"
+                    onClick={initiatePayment}
+                    className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-4 rounded-xl font-semibold text-lg hover:from-purple-700 hover:to-purple-800 transition-all mb-4 flex items-center justify-center gap-2"
                   >
-                    <span className="text-2xl">💵</span>
-                    <span>Cash</span>
-                  </button>
-
-                  {/* UPI Button */}
-                  <button
-                    onClick={() => setPaymentMethod('UPI')}
-                    className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-4 rounded-xl font-semibold text-lg hover:from-purple-700 hover:to-purple-800 transition-all flex items-center justify-center gap-2"
-                  >
+                    <span>Pay ₹10 via UPI</span>
                     <span className="text-2xl">📱</span>
-                    <span>UPI</span>
                   </button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Selected Payment Method */}
-                  <div className={`border rounded-xl p-4 ${paymentMethod === 'CASH' ? 'bg-green-50 border-green-200' : 'bg-purple-50 border-purple-200'}`}>
-                    <div className={`text-lg font-semibold ${paymentMethod === 'CASH' ? 'text-green-600' : 'text-purple-600'}`}>
-                      {paymentMethod === 'CASH' ? '💵 Cash Payment' : '📱 UPI Payment'}
-                    </div>
-                  </div>
-
-                  {/* Submit Button */}
-                  <button
-                    onClick={handleSubmitPayment}
-                    className="w-full py-4 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-christmas-green to-green-600 text-white hover:from-green-700 hover:to-green-800"
-                  >
-                    <span>Submit ₹{paymentAmount}</span>
-                    <span className="text-xl">✓</span>
-                  </button>
-
-                  {/* Change Method Button */}
-                  <button
-                    onClick={() => setPaymentMethod(null)}
-                    className="w-full text-gray-500 text-sm hover:text-gray-700"
-                  >
-                    ← Change payment method
-                  </button>
-
-                  <p className="text-xs text-gray-500 text-center">
-                    Admin will verify your payment and update the status
+                  <p className="text-sm text-gray-500">
+                    This will open your UPI app (GPay, PhonePe, Paytm, etc.)
                   </p>
+                </>
+              ) : (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                  <div className="text-yellow-600 text-lg font-semibold mb-2">
+                    ⏳ Payment Sent?
+                  </div>
+                  <p className="text-gray-600 text-sm mb-4">
+                    If you completed the payment, the admin will verify and mark it as paid.
+                  </p>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-green-700 text-sm">
+                    ✓ Payment initiated. Awaiting admin confirmation.
+                  </div>
                 </div>
               )}
             </div>

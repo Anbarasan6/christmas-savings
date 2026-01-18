@@ -1,5 +1,5 @@
-// Start date: January 4, 2026
-export const START_DATE = new Date('2026-01-04');
+// Start date: January 1, 2026
+export const START_DATE = new Date('2026-01-01');
 export const TOTAL_WEEKS = 48;
 export const WEEKLY_AMOUNT = 10;
 export const TOTAL_AMOUNT = TOTAL_WEEKS * WEEKLY_AMOUNT;
@@ -51,13 +51,13 @@ export const isCurrentWeek = (weekNo) => {
 };
 
 // Generate UPI deep link
-export const generateUPILink = (upiId, amount = WEEKLY_AMOUNT, note = 'Christmas Chit Week Payment') => {
+export const generateUPILink = (upiId, memberName, weekNo) => {
   const params = new URLSearchParams({
     pa: upiId,
-    pn: 'Christmas Chit',
-    am: amount.toString(),
+    pn: 'Christmas Savings',
+    am: WEEKLY_AMOUNT.toString(),
     cu: 'INR',
-    tn: note
+    tn: `Week ${weekNo} Payment - ${memberName}`
   });
   return `upi://pay?${params.toString()}`;
 };
