@@ -36,16 +36,23 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, membersRes, paymentsRes, notificationsRes] = await Promise.all([
+      const [statsRes, membersRes, paymentsRes] = await Promise.all([
         api.get('/payments/stats'),
         api.get('/members'),
-        api.get('/payments'),
-        api.get('/payments/notifications')
+        api.get('/payments')
       ]);
       setStats(statsRes.data);
       setMembers(membersRes.data);
       setPayments(paymentsRes.data);
-      setNotifications(notificationsRes.data);
+      
+      // Fetch notifications separately (may fail if backend not updated)
+      try {
+        const notificationsRes = await api.get('/payments/notifications');
+        setNotifications(notificationsRes.data);
+      } catch (e) {
+        console.log('Notifications endpoint not available yet');
+        setNotifications([]);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
