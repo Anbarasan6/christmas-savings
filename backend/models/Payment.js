@@ -40,8 +40,12 @@ const Payment = sequelize.define('Payment', {
     allowNull: true
   },
   status: {
-    type: DataTypes.ENUM('PAID', 'PENDING'),
+    type: DataTypes.ENUM('PAID', 'PENDING', 'SUBMITTED', 'REJECTED'),
     defaultValue: 'PENDING'
+  },
+  submitted_at: {
+    type: DataTypes.DATE,
+    allowNull: true
   },
   paid_date: {
     type: DataTypes.DATE,

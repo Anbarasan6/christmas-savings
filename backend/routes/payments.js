@@ -61,13 +61,17 @@ router.get('/stats', authMiddleware, async (req, res) => {
     const totalExpected = totalMembers * 48 * 10;
     const pendingAmount = totalExpected - totalCollected;
 
+    // Count submitted payments awaiting approval
+    const pendingApproval = await Payment.count({ where: { status: 'SUBMITTED' } });
+
     res.json({
       totalMembers,
       totalCollected,
       upiTotal,
       cashTotal,
       pendingAmount,
-      totalExpected
+      totalExpected,
+      pendingApproval
     });
   } catch (error) {
     console.error('Error fetching stats:', error);
@@ -75,10 +79,35 @@ router.get('/stats', authMiddleware, async (req, res) => {
   }
 });
 
-// Create payment request (public - for UPI payment initiation)
+// Get pending submissions for admin notifications (admin only)
+router.get('/notifications', authMiddleware, async (req, res) => {
+  try {
+    const submissions = await Payment.findAll({
+      where: { status: 'SUBMITTED' },
+      include: [{
+        model: Member,
+        as: 'member',
+        attributes: ['id', 'name', 'phone']
+      }],
+      order: [['submitted_at', 'DESC']]
+    });
+    
+    const transformedSubmissions = submissions.map(p => ({
+      ...p.toJSON(),
+      member_id: p.member
+    }));
+    
+    res.json(transformedSubmissions);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create payment request (public - for member payment submission)
 router.post('/', async (req, res) => {
   try {
-    const { member_id, week_no } = req.body;
+    const { member_id, week_no, payment_mode } = req.body;
 
     // Check if payment already exists
     let payment = await Payment.findOne({ 
@@ -89,8 +118,12 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Payment already completed for this week' });
     }
 
+    if (payment && payment.status === 'SUBMITTED') {
+      return res.status(400).json({ message: 'Payment already submitted, awaiting admin approval' });
+    }
+
     if (!payment) {
-      const startDate = new Date('2026-01-01');
+      const startDate = new Date('2026-01-03');
       const weekStartDate = new Date(startDate);
       weekStartDate.setDate(startDate.getDate() + (week_no - 1) * 7);
 
@@ -99,12 +132,20 @@ router.post('/', async (req, res) => {
         week_no,
         week_start_date: weekStartDate,
         amount: 10,
-        status: 'PENDING',
-        payment_mode: 'UPI'
+        status: 'SUBMITTED',
+        payment_mode: payment_mode || 'UPI',
+        submitted_at: new Date()
+      });
+    } else {
+      // Update existing pending payment to submitted
+      await payment.update({
+        status: 'SUBMITTED',
+        payment_mode: payment_mode || 'UPI',
+        submitted_at: new Date()
       });
     }
 
-    res.json({ message: 'Payment initiated', payment });
+    res.json({ message: 'Payment submitted for approval', payment });
   } catch (error) {
     console.error('Error creating payment:', error);
     res.status(500).json({ message: 'Server error' });

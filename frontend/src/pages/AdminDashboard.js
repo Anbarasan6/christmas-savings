@@ -12,6 +12,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [members, setMembers] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Modal states
@@ -35,14 +36,16 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, membersRes, paymentsRes] = await Promise.all([
+      const [statsRes, membersRes, paymentsRes, notificationsRes] = await Promise.all([
         api.get('/payments/stats'),
         api.get('/members'),
-        api.get('/payments')
+        api.get('/payments'),
+        api.get('/payments/notifications')
       ]);
       setStats(statsRes.data);
       setMembers(membersRes.data);
       setPayments(paymentsRes.data);
+      setNotifications(notificationsRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
@@ -119,6 +122,30 @@ const AdminDashboard = () => {
     }
   };
 
+  // Approve/Reject payment functions
+  const approvePayment = async (paymentId) => {
+    try {
+      await api.put(`/payments/${paymentId}`, { status: 'PAID' });
+      toast.success('Payment approved! ✓');
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to approve payment');
+    }
+  };
+
+  const rejectPayment = async (paymentId) => {
+    if (!window.confirm('Are you sure you want to reject this payment?')) {
+      return;
+    }
+    try {
+      await api.put(`/payments/${paymentId}`, { status: 'REJECTED' });
+      toast.success('Payment rejected');
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to reject payment');
+    }
+  };
+
   // Filter payments
   const filteredPayments = payments.filter(p => {
     if (filterMember && String(p.member_id?.id) !== filterMember) return false;
@@ -156,17 +183,22 @@ const AdminDashboard = () => {
       <div className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4">
           <div className="flex gap-4">
-            {['dashboard', 'members', 'payments'].map((tab) => (
+            {['dashboard', 'notifications', 'members', 'payments'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`py-4 px-6 font-semibold capitalize transition-all border-b-2 ${
+                className={`py-4 px-6 font-semibold capitalize transition-all border-b-2 relative ${
                   activeTab === tab
                     ? 'border-christmas-green text-christmas-green'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
                 {tab}
+                {tab === 'notifications' && notifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                    {notifications.length}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -208,6 +240,12 @@ const AdminDashboard = () => {
                 <div className="text-3xl font-bold text-orange-600">₹{stats.pendingAmount}</div>
                 <div className="text-gray-600">Pending Amount</div>
               </div>
+
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="text-4xl mb-2">🔔</div>
+                <div className="text-3xl font-bold text-red-600">{stats.pendingApproval || 0}</div>
+                <div className="text-gray-600">Awaiting Approval</div>
+              </div>
             </div>
 
             {/* Progress */}
@@ -226,6 +264,75 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Notifications Tab */}
+        {activeTab === 'notifications' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">
+              🔔 Payment Notifications ({notifications.length})
+            </h2>
+
+            {notifications.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-lg p-12 text-center">
+                <div className="text-6xl mb-4">✅</div>
+                <h3 className="text-xl font-semibold text-gray-700">No pending approvals</h3>
+                <p className="text-gray-500 mt-2">All payment submissions have been reviewed</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {notifications.map((notification) => (
+                  <div key={notification.id} className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-10 h-10 bg-christmas-green rounded-full flex items-center justify-center text-white font-bold">
+                            {notification.member_id?.name?.charAt(0)?.toUpperCase()}
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg">{notification.member_id?.name}</h3>
+                            <p className="text-sm text-gray-500">{notification.member_id?.phone || 'No phone'}</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-3 mt-3">
+                          <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
+                            Week {notification.week_no}
+                          </span>
+                          <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
+                            ₹{notification.amount}
+                          </span>
+                          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                            notification.payment_mode === 'UPI' 
+                              ? 'bg-purple-100 text-purple-800' 
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {notification.payment_mode === 'UPI' ? '📱 UPI' : '💵 Cash'}
+                          </span>
+                          <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-semibold">
+                            ⏳ Submitted {notification.submitted_at ? new Date(notification.submitted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => approvePayment(notification.id)}
+                          className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-all flex items-center gap-2"
+                        >
+                          ✓ Approve
+                        </button>
+                        <button
+                          onClick={() => rejectPayment(notification.id)}
+                          className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all flex items-center gap-2"
+                        >
+                          ✗ Reject
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -334,6 +441,8 @@ const AdminDashboard = () => {
                     <option value="">All Status</option>
                     <option value="PAID">Paid</option>
                     <option value="PENDING">Pending</option>
+                    <option value="SUBMITTED">Submitted</option>
+                    <option value="REJECTED">Rejected</option>
                   </select>
                 </div>
                 <div className="flex items-end">
@@ -389,7 +498,11 @@ const AdminDashboard = () => {
                           <span className={`px-2 py-1 rounded text-sm ${
                             payment.status === 'PAID' 
                               ? 'bg-green-100 text-green-800' 
-                              : 'bg-yellow-100 text-yellow-800'
+                              : payment.status === 'SUBMITTED'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : payment.status === 'REJECTED'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'
                           }`}>
                             {payment.status}
                           </span>
@@ -487,7 +600,9 @@ const AdminDashboard = () => {
                 className="w-full p-3 border rounded-lg"
               >
                 <option value="PENDING">Pending</option>
+                <option value="SUBMITTED">Submitted</option>
                 <option value="PAID">Paid</option>
+                <option value="REJECTED">Rejected</option>
               </select>
             </div>
             
