@@ -104,6 +104,68 @@ router.get('/notifications', authMiddleware, async (req, res) => {
   }
 });
 
+// Get pending payment details member-wise (admin only)
+router.get('/pending-details', authMiddleware, async (req, res) => {
+  try {
+    const members = await Member.findAll({
+      order: [['name', 'ASC']]
+    });
+
+    const memberPendingDetails = await Promise.all(
+      members.map(async (member) => {
+        const pendingPayments = await Payment.findAll({
+          where: { 
+            member_id: member.id,
+            status: { [Op.in]: ['PENDING', 'SUBMITTED', 'REJECTED'] }
+          },
+          order: [['week_no', 'ASC']]
+        });
+
+        const paidPayments = await Payment.count({
+          where: { 
+            member_id: member.id,
+            status: 'PAID'
+          }
+        });
+
+        const totalPending = pendingPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+        
+        return {
+          member_id: member.id,
+          member_name: member.name,
+          member_phone: member.phone,
+          total_pending_amount: totalPending,
+          pending_weeks_count: pendingPayments.length,
+          paid_weeks_count: paidPayments,
+          pending_payments: pendingPayments.map(p => ({
+            id: p.id,
+            week_no: p.week_no,
+            week_start_date: p.week_start_date,
+            amount: p.amount,
+            status: p.status,
+            payment_mode: p.payment_mode,
+            utr_no: p.utr_no,
+            submitted_at: p.submitted_at
+          }))
+        };
+      })
+    );
+
+    // Filter out members with no pending payments
+    const filteredDetails = memberPendingDetails.filter(m => m.pending_weeks_count > 0);
+
+    res.json({
+      total_members_with_pending: filteredDetails.length,
+      total_pending_payments: filteredDetails.reduce((sum, m) => sum + m.pending_weeks_count, 0),
+      total_pending_amount: filteredDetails.reduce((sum, m) => sum + m.total_pending_amount, 0),
+      member_details: filteredDetails
+    });
+  } catch (error) {
+    console.error('Error fetching pending details:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Create payment request (public - for member payment submission)
 router.post('/', async (req, res) => {
   try {

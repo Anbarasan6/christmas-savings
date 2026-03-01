@@ -13,6 +13,7 @@ const AdminDashboard = () => {
   const [members, setMembers] = useState([]);
   const [payments, setPayments] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [pendingDetails, setPendingDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   
   // Modal states
@@ -52,6 +53,15 @@ const AdminDashboard = () => {
       } catch (e) {
         console.log('Notifications endpoint not available yet');
         setNotifications([]);
+      }
+
+      // Fetch pending details separately
+      try {
+        const pendingDetailsRes = await api.get('/payments/pending-details');
+        setPendingDetails(pendingDetailsRes.data);
+      } catch (e) {
+        console.log('Pending details endpoint not available yet');
+        setPendingDetails(null);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -190,7 +200,7 @@ const AdminDashboard = () => {
       <div className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4">
           <div className="flex gap-4">
-            {['dashboard', 'notifications', 'members', 'payments'].map((tab) => (
+            {['dashboard', 'notifications', 'pending', 'members', 'payments'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -204,6 +214,11 @@ const AdminDashboard = () => {
                 {tab === 'notifications' && notifications.length > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
                     {notifications.length}
+                  </span>
+                )}
+                {tab === 'pending' && pendingDetails && pendingDetails.total_members_with_pending > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                    {pendingDetails.total_members_with_pending}
                   </span>
                 )}
               </button>
@@ -338,6 +353,155 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Pending Details Tab */}
+        {activeTab === 'pending' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">
+              ⏳ Pending Payment Details
+            </h2>
+
+            {!pendingDetails ? (
+              <div className="bg-white rounded-xl shadow-lg p-12 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-christmas-green border-t-transparent mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading pending details...</p>
+              </div>
+            ) : pendingDetails.total_members_with_pending === 0 ? (
+              <div className="bg-white rounded-xl shadow-lg p-12 text-center">
+                <div className="text-6xl mb-4">🎉</div>
+                <h3 className="text-xl font-semibold text-gray-700">No Pending Payments!</h3>
+                <p className="text-gray-500 mt-2">All members are up to date with their payments</p>
+              </div>
+            ) : (
+              <div>
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div className="bg-white rounded-xl shadow-lg p-6">
+                    <div className="text-4xl mb-2">👥</div>
+                    <div className="text-3xl font-bold text-orange-600">{pendingDetails.total_members_with_pending}</div>
+                    <div className="text-gray-600">Members with Pending</div>
+                  </div>
+                  
+                  <div className="bg-white rounded-xl shadow-lg p-6">
+                    <div className="text-4xl mb-2">📅</div>
+                    <div className="text-3xl font-bold text-red-600">{pendingDetails.total_pending_payments}</div>
+                    <div className="text-gray-600">Total Pending Weeks</div>
+                  </div>
+                  
+                  <div className="bg-white rounded-xl shadow-lg p-6">
+                    <div className="text-4xl mb-2">💸</div>
+                    <div className="text-3xl font-bold text-purple-600">₹{pendingDetails.total_pending_amount}</div>
+                    <div className="text-gray-600">Total Pending Amount</div>
+                  </div>
+                </div>
+
+                {/* Member-wise Pending Details */}
+                <div className="space-y-4">
+                  {pendingDetails.member_details.map((memberDetail) => (
+                    <div key={memberDetail.member_id} className="bg-white rounded-xl shadow-lg overflow-hidden">
+                      {/* Member Header */}
+                      <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white p-4">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                              {memberDetail.member_name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-bold">{memberDetail.member_name}</h3>
+                              <p className="text-white/90 text-sm">{memberDetail.member_phone || 'No phone'}</p>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-3">
+                            <div className="bg-white/20 px-4 py-2 rounded-lg backdrop-blur">
+                              <div className="text-xs text-white/80">Pending Weeks</div>
+                              <div className="text-2xl font-bold">{memberDetail.pending_weeks_count}</div>
+                            </div>
+                            <div className="bg-white/20 px-4 py-2 rounded-lg backdrop-blur">
+                              <div className="text-xs text-white/80">Paid Weeks</div>
+                              <div className="text-2xl font-bold">{memberDetail.paid_weeks_count}</div>
+                            </div>
+                            <div className="bg-white/20 px-4 py-2 rounded-lg backdrop-blur">
+                              <div className="text-xs text-white/80">Pending Amount</div>
+                              <div className="text-2xl font-bold">₹{memberDetail.total_pending_amount}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Pending Payment Records */}
+                      <div className="p-4">
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-gray-50 border-b">
+                              <tr>
+                                <th className="text-left p-3 text-sm font-semibold">Week No</th>
+                                <th className="text-left p-3 text-sm font-semibold">Period</th>
+                                <th className="text-left p-3 text-sm font-semibold">Amount</th>
+                                <th className="text-left p-3 text-sm font-semibold">Status</th>
+                                <th className="text-left p-3 text-sm font-semibold">Mode</th>
+                                <th className="text-left p-3 text-sm font-semibold">UTR</th>
+                                <th className="text-left p-3 text-sm font-semibold">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {memberDetail.pending_payments.map((payment) => (
+                                <tr key={payment.id} className="border-b hover:bg-gray-50">
+                                  <td className="p-3">
+                                    <span className="font-bold text-lg">Week {payment.week_no}</span>
+                                  </td>
+                                  <td className="p-3 text-sm text-gray-600">
+                                    {formatDate(getWeekStartDate(payment.week_no))} - {formatDate(getWeekEndDate(payment.week_no))}
+                                  </td>
+                                  <td className="p-3">
+                                    <span className="font-bold text-green-600">₹{payment.amount}</span>
+                                  </td>
+                                  <td className="p-3">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                      payment.status === 'SUBMITTED'
+                                        ? 'bg-yellow-100 text-yellow-800'
+                                        : payment.status === 'REJECTED'
+                                        ? 'bg-red-100 text-red-800'
+                                        : 'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {payment.status}
+                                    </span>
+                                  </td>
+                                  <td className="p-3">
+                                    <span className={`px-2 py-1 rounded text-xs ${
+                                      payment.payment_mode === 'UPI'
+                                        ? 'bg-purple-100 text-purple-800'
+                                        : 'bg-blue-100 text-blue-800'
+                                    }`}>
+                                      {payment.payment_mode || '-'}
+                                    </span>
+                                  </td>
+                                  <td className="p-3 text-xs text-gray-600">
+                                    {payment.utr_no || '-'}
+                                  </td>
+                                  <td className="p-3">
+                                    <button
+                                      onClick={() => openPaymentModal({
+                                        ...payment,
+                                        member_id: { id: memberDetail.member_id, name: memberDetail.member_name }
+                                      })}
+                                      className="text-blue-600 hover:text-blue-800 font-semibold text-sm"
+                                    >
+                                      Update
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
